@@ -980,11 +980,10 @@ suboptimal: A systematic review. *Journal of Clinical Epidemiology*,
 
 Austin P.C. (2023). Differences in target estimands between different
 propensity score-based weights. *Pharmacoepidemiology and Drug Safety*,
-Published ahead of print*.*
+Published ahead of print.
 
 Chatton A. & Rohrer JM. (2023) The causal cookbook: Recipes for
-propensity scores, g-computation and doubly robust standardisation. ADD
-PsyArXiv link
+propensity scores, g-computation and doubly robust standardisation. PsyArXiv: 10.31234/osf.io/k2gzp
 
 Danelian G., Foucher Y., Léger M., Le Borgne F. & Chatton A. (2023)
 Identifying in-sample positivity violations through regression trees:
