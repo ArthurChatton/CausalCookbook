@@ -1,7 +1,7 @@
 Causal cookbook recipes
 ================
 Arthur Chatton and Julia Rohrer
-2023-09-13
+2024-01-12
 
 -   <a href="#goals" id="toc-goals">Goals</a>
 -   <a href="#implementing-the-recipes"
@@ -171,9 +171,9 @@ So, positivity seems respected here. We can go away and start
 
 ## Inverse-probability-weighting
 
-Next, we illustrate the recipe provided in Box 2.
+Next, we illustrate the recipe provided in Box 4.
 
-In the first step, we need to fit the nuisance model g(C), *i.e.*, the
+In the first step, we need to fit the nuisance model e(C), *i.e.*, the
 propensity score. (Here, we do know how the data were generated, so this
 step is easy—if we were using actual data, we would first need to decide
 which covariates to include and how to precisely model the action)
@@ -181,7 +181,7 @@ which covariates to include and how to precisely model the action)
 ``` r
 # Fit a logistic regression model predicting A from the relevant confounders
 # And immediately predict A for all observations (fitted.values)
-g <- glm(A ~ x2 + x4 + x2*x4, data = ObsData, family=binomial)$fitted.values
+e <- glm(A ~ x2 + x4 + x2*x4, data = ObsData, family=binomial)$fitted.values
 ```
 
 The coefficients of this model don’t matter, so we don’t even look them
@@ -193,7 +193,7 @@ of interest. Here, we use the unstabilised ATE weights.
 ``` r
 # Assign the weights depending on the action group
 # See also Table 2 in the Causal Cookbook
-omega <- ifelse(ObsData$A==1, 1/g, 1/(1-g))
+omega <- ifelse(ObsData$A==1, 1/e, 1/(1-e))
 summary(omega)
 ```
 
@@ -227,10 +227,12 @@ print(tabWeighted, smd = TRUE)
 A correct balance of the confounders is achieved when the standardised
 mean difference (`SMD` in the table) between the two action groups in
 the pseudo sample is lower than 10% (Ali *et al.*, 2015). Here, the
-weights seems to have balanced the groups. However, if we have
-unmeasured or omitted confounders some imbalance can remains unnoticed.
+weights seem to have balanced the groups. However, if we have
+unmeasured or omitted confounders some imbalances can remain unnoticed.
 Note that the pseudo-sample size is twice the actual sample size. The
-stabilisation of the weights correct this phenomenon.
+stabilisation of the weights corrects this phenomenon.
+
+Note that other metrics can be useful, see the `cobalt` package (Greifer, 2024) and the related vignettes.
 
 In the third step, we fit the marginal structural model.
 
@@ -243,7 +245,7 @@ msm_RD <- lm(Y~A, weights = omega, data=ObsData)
 
 The choice of the marginal structural model depends on the causal effect
 of interest. A logistic model gives us an estimate of the marginal OR,
-while a linear model give is an estimate of the risk difference.
+while a linear model gives us an estimate of the risk difference.
 
 Fourth step, the resulting estimates:
 
@@ -260,8 +262,8 @@ We obtain a marginal OR of 2.57 and an ATE of 0.231—these are indeed the
 true values that we recovered above by contrasting the potential
 outcomes.
 
-For the variance of these estimates, we can use either a robust-SE
-matrix as below or bootstrapping (see end of this document).
+For the variance of these estimates, we can use either a robust SE
+matrix as below or bootstrapping (see the end of this document).
 
 ``` r
 library(sandwich)
@@ -293,7 +295,7 @@ coeftest(msm_OR, vcov = sandwich)
 
 ## G-computation
 
-Next, we illustrate the recipe from Box 3.
+Next, we illustrate the recipe from Box 5.
 
 First step, we need to fit the nuisance model Q(A,C):
 
@@ -303,7 +305,7 @@ Q <- glm(Y ~ A + x2 + x4 + x2*x4, data = ObsData, family=binomial)
 ```
 
 Again, the coefficients of this model don’t matter. In contrast to
-propensity-score-based methods, g-computation doesn’t need a “balance”
+propensity score-based methods, g-computation doesn’t need a “balance”
 assumption.
 
 Does the Q-model look familiar? Indeed, it’s a classical model used to
@@ -367,7 +369,7 @@ head(ObsData); head(A1Data); head(A0Data)
     ## 6  1  0 -1.2864879  1.5281848 0 0   1   0
 
 Our hypothetical worlds are identical except for the action status.
-`A1Data`represents a hypothetical world in which all individuals are
+`A1Data` represents a hypothetical world in which all individuals are
 attendees, while `A0Data` represents the opposite worlds in which all
 individuals are non-attendees.
 
@@ -415,20 +417,20 @@ bootstrapping, which we illustrate at the end of this document.
 
 ## Doubly-robust standardisation
 
-Next, we illustrate the recipe provided in Box 4.
+Next, we illustrate the recipe provided in Box 6.
 
 Doubly-robust standardisation is a doubly-robust estimator combining IPW
 and g-computation. It can be more robust to potential misspecification
-because it requires only one model to be correctly specified, this
+because it requires only one model to be correctly specified, 
 giving us twice the chance to get it right.
 
-This estimator begins (like IPW) with fitting g(C):
+This estimator begins (like IPW) with fitting e(C):
 
 ``` r
 # Correctly specified action model
-g <- glm(A ~ x2 + x4 + x2*x4, data = ObsData, family=binomial)$fitted.values
+e <- glm(A ~ x2 + x4 + x2*x4, data = ObsData, family=binomial)$fitted.values
 # Misspecified action model
-gmis <- glm(A ~ x2 + x4, data = ObsData, family=binomial)$fitted.values
+emis <- glm(A ~ x2 + x4, data = ObsData, family=binomial)$fitted.values
 ```
 
 We also fit a second model, which is misspecified because it omits the
@@ -443,7 +445,7 @@ Second, we compute the weights that match the causal effect of interest
 
 ``` r
 # Weights from the correctly specified action model
-omega <- ifelse(ObsData$A==1, 1/g, 1/(1-g))
+omega <- ifelse(ObsData$A==1, 1/e, 1/(1-e))
 summary(omega)
 ```
 
@@ -452,16 +454,16 @@ summary(omega)
 
 ``` r
 # Weights from the misspecified action model
-omegamis <- ifelse(ObsData$A==1, 1/gmis, 1/(1-gmis))
+omegamis <- ifelse(ObsData$A==1, 1/emis, 1/(1-emis))
 summary(omegamis)
 ```
 
     ##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
     ##   1.040   1.397   1.659   2.003   2.274  21.454
 
-The `omega` weights are identical of those from IPW because it is
+The `omega` weights are identical to those from IPW because it is
 exactly the same procedure up to this point. The `omegamis` weights
-differ due to the misspecification of g(C).
+differ due to the misspecification of e(C).
 
 Now, we start the g-computation part of doubly-robust standardisation.
 We fit the outcome model Q(A,C), but this time it is weighted by the
@@ -480,15 +482,15 @@ We also compute various misspecified Q(A,C) models:
 ``` r
 # Outcome model misspecified
 Qmis <- glm(Y ~ A + x2 + x4, weights = omega, data = ObsData, family=binomial)
-# Outcome model correct but action model (weights) misspecified
+# Outcome model is correct but the action model (weights) is misspecified
 Qomis <- glm(Y ~ A + x2 + x4 + x2*x4, weights = omegamis, data = ObsData, family=binomial)
-# Both outcome model and action model misspecified
+# Both the outcome model and action model are misspecified
 Qmismis <- glm(Y ~ A + x2 + x4, weights = omegamis, data = ObsData, family=binomial)
 ```
 
 Where `Qmis` is only misspecified in Q(A,C), `Qomis` is only
-misspecified in g(C), and `Qmismis` is misspecified in both Q(A,C) and
-g(C).
+misspecified in e(C), and `Qmismis` is misspecified in both Q(A,C) and
+e(C).
 
 Fourth step, generating the counterfactuals dataset:
 
@@ -557,7 +559,7 @@ c(MOR_DRS, RD_DRS) |> round(digits=3)
     ## [1] 2.564 0.231
 
 Again, the estimates are unbiased since we have included all the
-confounder and correctly specified the models. But what if the model(s)
+confounders and correctly specified the models. But what if the model(s)
 are misspecified?
 
 ``` r
@@ -585,7 +587,7 @@ bias. However, when both models are misspecified, we can observe a bias
 (which is small in this simulated example but could of course be much
 larger in actual data).
 
-You can try to chance the IPW and the g-computation codes by yourself to
+You can try to change the IPW and the g-computation codes by yourself to
 see that these procedures lack this doubly-robust property. Maybe you
 also want to try omitting a confounder of changing the functional form
 (*e.g.*, cubic relationship for `x4`) to get a feel for how the methods
@@ -629,12 +631,12 @@ standardisation).
 Let’s apply the bootstrap to g-computation:
 
 ``` r
-# A bit of setup before we can start the resamplig
+# A bit of setup before we can start the resampling
 
 # We will need an empty vector to store the results
 boot_MOR <- boot_ATE <- c()
 
-# Number of bootstrap samples, usually 500 or 100
+# Number of bootstrap samples, usually 500 or 1000
 B <- 20 
 
 for (i in 1:B){
@@ -715,15 +717,15 @@ quantile(boot_ATE, probs=c(0.025,0.975), na.rm=TRUE)
 In the previous sections, we have used the unstabilised ATE weights for
 IPW and the doubly robust standardisation. However, we can use other
 weighting schemes (presented in Table 2 of Chatton & Rohrer, 2023;
-reproduced below) which result in different pseudo-samples.
+reproduced below) which results in different pseudo-samples.
 
 | Name             |  Weight if A=1  |   Weight if A=0   | Target population |
 |------------------|:---------------:|:-----------------:|:-----------------:|
-| Unstabilised ATE |     1/g(C)      |   1/\[1-g(C)\]    |   Whole sample    |
-| Stabilised ATE   |   P(A=1)/g(C)   | P(A=0)/\[1-g(C)\] |   Whole sample    |
-| Unstabilised ATT |        1        |  g(C)/\[1-g(C)\]  |      Treated      |
-| Unstabilised ATU | \[1-g(C)\]/g(C) |         1         |     Untreated     |
-| Overlap          |     1-g(C)      |       g(C)        |      Unclear      |
+| Unstabilised ATE |     1/e(C)      |   1/\[1-e(C)\]    |   Whole sample    |
+| Stabilised ATE   |   P(A=1)/e(C)   | P(A=0)/\[1-e(C)\] |   Whole sample    |
+| Unstabilised ATT |        1        |  e(C)/\[1-e(C)\]  |      Treated      |
+| Unstabilised ATU | \[1-e(C)\]/e(C) |         1         |     Untreated     |
+| Overlap          |     1-e(C)      |       e(C)        |      Unclear      |
 
 Let’s take a look at how using these weights affects the actual
 (simulated) sample characteristics.
@@ -747,12 +749,12 @@ print(tab, smd = FALSE)
 We see that without any weighting, only `x1` is balanced between the two
 groups.
 
-Now take a look at the pseudo-sample that results when we weight the
+Now take a look at the pseudo-sample that results when we weigh the
 data using the unstabilised ATE weights:
 
 ``` r
-## Recompute the weights from g(C) for pedagogical purpose
-omega <- ifelse(ObsData$A==1, 1/g, 1/(1-g))
+## Recompute the weights from e(C) for pedagogical purpose
+omega <- ifelse(ObsData$A==1, 1/e, 1/(1-e))
 summary(omega)
 ```
 
@@ -778,7 +780,7 @@ print(tabWeighted, smd = FALSE)
     ##   x3 (mean (SD))      0.00 (1.05)     -0.65 (0.83)      0.64 (0.83)
     ##   x4 (mean (SD))      0.00 (1.00)      0.00 (1.00)      0.00 (1.00)
 
-Now, in the two groups in the pseudo-sample, `x2`and `x4` (the
+Now, in the two groups in the pseudo-sample, `x2` and `x4` (the
 covariates necessary to achieve conditional exchangeability) have the
 same distribution as in the actual sample; `x3` differs between the
 groups – it was not included when calculating the weights as it was not
@@ -788,8 +790,8 @@ that the pseudo-sample size is twice the actual sample size. Stabilised
 weights correct this issue and produce less extreme weights.
 
 ``` r
-## Compute the weights from g(C) 
-omega <- ifelse(ObsData$A==1, mean(ObsData$A)/g, (1-mean(ObsData$A))/(1-g))
+## Compute the weights from e(C) 
+omega <- ifelse(ObsData$A==1, mean(ObsData$A)/e, (1-mean(ObsData$A))/(1-e))
 summary(omega)
 ```
 
@@ -815,14 +817,14 @@ print(tabWeighted, smd = FALSE)
     ##   x3 (mean (SD))      0.00 (1.05)     -0.65 (0.83)      0.64 (0.83)
     ##   x4 (mean (SD))      0.00 (1.00)      0.00 (1.00)      0.00 (1.00)
 
-We see we have approximate more closely the original sample size with
+We see we have approximated more closely the original sample size with
 stabilised weights as expected.
 
 What happens if we use ATT weights instead?
 
 ``` r
-## Compute the weights from g(C) 
-omega <- ifelse(ObsData$A==1, 1, g/(1-g))
+## Compute the weights from e(C) 
+omega <- ifelse(ObsData$A==1, 1, e/(1-e))
 summary(omega)
 ```
 
@@ -848,7 +850,7 @@ print(tabWeighted, smd = FALSE)
     ##   x3 (mean (SD))     -0.10 (1.05)     -0.75 (0.81)      0.54 (0.84)
     ##   x4 (mean (SD))      0.21 (0.97)      0.21 (0.97)      0.22 (0.97)
 
-Here, we see that the distribution of `x2`and `x4`in the two groups no
+Here, we see that the distribution of `x2` and `x4` in the two groups no
 longer matches the actual sample distribution. Instead, they have the
 same distribution as in the attendee group in our original data. Thus,
 ATT weights target the “treated” population instead of the whole
@@ -857,8 +859,8 @@ population.
 ATU weights do “the opposite” and target the untreated population:
 
 ``` r
-## Compute the weights from g(C) 
-omega <- ifelse(ObsData$A==1, (1-g)/g, 1)
+## Compute the weights from e(C) 
+omega <- ifelse(ObsData$A==1, (1-e)/e, 1)
 summary(omega)
 ```
 
@@ -888,8 +890,8 @@ Lastly, there are overlap weights. They are designed to target a
 population in which positivity is respected. Let’s take a look:
 
 ``` r
-## Compute the weights from g(C) 
-omega <- ifelse(ObsData$A==1, 1-g, g)
+## Compute the weights from e(C) 
+omega <- ifelse(ObsData$A==1, 1-e, e)
 summary(omega)
 ```
 
@@ -926,11 +928,11 @@ But what happens when there is a lack of positivity?
 ## Introduce a positivity violation in the simulated data
 ObsData$x4[ObsData$x4>0.5 & ObsData$A==1] <- 0.5 # No attendee can have x4 > 0.5, but non-attendees can
 
-## Compute the propensity score g(C)
-g <- glm(A ~ x2 + x4 + x2*x4, data = ObsData, family=binomial)$fitted.values
+## Compute the propensity score e(C)
+e <- glm(A ~ x2 + x4 + x2*x4, data = ObsData, family=binomial)$fitted.values
 
-## Compute the weights from g(C) 
-omega <- ifelse(ObsData$A==1, (1-g)/g, 1)
+## Compute the weights from e(C) 
+omega <- ifelse(ObsData$A==1, (1-e)/e, 1)
 summary(omega)
 ```
 
@@ -980,19 +982,21 @@ suboptimal: A systematic review. *Journal of Clinical Epidemiology*,
 
 Austin P.C. (2023). Differences in target estimands between different
 propensity score-based weights. *Pharmacoepidemiology and Drug Safety*,
-Published ahead of print.
+32(10), 1103-1112.
 
 Chatton A. & Rohrer JM. (2023) The causal cookbook: Recipes for
 propensity scores, g-computation and doubly robust standardisation. PsyArXiv: 10.31234/osf.io/k2gzp
 
 Danelian G., Foucher Y., Léger M., Le Borgne F. & Chatton A. (2023)
 Identifying in-sample positivity violations through regression trees:
-the PoRT algorithm. Accepted in *Journal of Causal Inference*
+the PoRT algorithm. *Journal of Causal Inference*, 11(1), 20220032. 
 
-Yoshida K. & Bartel A. (2022). tableone: Create ‘Table 1’ to Describe
-Baseline Characteristics with or without Propensity Score Weights. *R
-package*, <https://CRAN.R-project.org/package=tableone>
+Greifer, N. (2024). cobalt: Covariate Balance Tables and Plots. *R package*, <https://CRAN.R-project.org/package=cobalt>
 
 Westreich D. & Greenland S. (2013). The Table 2 Fallacy: Presenting and
 Interpreting Confounder and Modifier Coefficients. *American Journal of
 Epidemiology*, 177(4), 292‑298.
+
+Yoshida K. & Bartel A. (2022). tableone: Create ‘Table 1’ to Describe
+Baseline Characteristics with or without Propensity Score Weights. *R
+package*, <https://CRAN.R-project.org/package=tableone>
