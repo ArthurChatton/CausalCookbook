@@ -544,6 +544,15 @@ data.frame(Y_A1=head(Y_A1), Y_A0=head(Y_A0), TRUE_Y=head(ObsData$Y)) |> round(di
 
 And we repeat the procedure for the misspecified models.
 
+``` r 
+Y_A1mis <- predict(Qmis, A1Data, type="response") 
+Y_A0mis <- predict(Qmis, A0Data, type="response") 
+Y_A1omis <- predict(Qomis, A1Data, type="response") 
+Y_A0omis <- predict(Qomis, A0Data, type="response") 
+Y_A1mismis <- predict(Qmismis, A1Data, type="response") 
+Y_A0mismis <- predict(Qmismis, A0Data, type="response") 
+```
+
 Finally, we compute the estimates of the doubly-robust standardisation:
 
 ``` r
