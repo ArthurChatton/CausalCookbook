@@ -147,10 +147,10 @@ level of `A`) regardless of the method used afterwards. For this, we use
 the PoRT algorithm (Danelian *et al.*, 2023).
 
 ``` r
-library(devtools)
-source_url('https://raw.githubusercontent.com/ArthurChatton/PoRT/619c2a65ae81f7092c3edf5d3bc8c44d470e9b66/port.r') #upload the port() function.
+remotes::install_github('ArthurChatton/PoRT') #install the port package.
+library(port)
 ObsData$x4_round <- round(ObsData$x4, 0) # to reduce computational time (huge sample size), in practice use meaningful cutoff.
-port(group="A", cov.quanti="x4_round", cov.quali="x2", data=ObsData)
+port(A="A", cov.quanti="x4_round", cov.quali="x2", data=ObsData)
 ```
 
     ## [1] "No problematic subgroup was identified."
